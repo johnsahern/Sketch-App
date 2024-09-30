@@ -1,46 +1,40 @@
-name: CI
+name: CI  # Nom du workflow
 
-on:
+on:  # Déclencheurs
   push:
-    branches: [ main ]
+    branches: [ main ]  # Le workflow se déclenche sur les pushs à la branche principale
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+jobs:  # Les tâches à exécuter
+  build:  # Nom de la tâche
+    runs-on: ubuntu-latest  # Utilise la dernière version d'Ubuntu
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    steps:  # Les étapes à exécuter
+      - name: Checkout repository  # Étape pour cloner le dépôt
+        uses: actions/checkout@v3  # Utilise l'action pour cloner
         with:
-          persist-credentials: false  # Désactiver l'authentification persistante
+          persist-credentials: false  # Empêche l'ajout d'informations d'identification persistantes
 
-      # Supprimer manuellement le .extraheader si nécessaire
-      - name: Remove extraheader
+      - name: Remove extraheader  # Supprimer une configuration Git non désirée
         run: git config --unset-all http.https://github.com/.extraheader || true
 
-      # Étape pour obtenir la date
-      - name: Get Date
+      - name: Get Date  # Obtenir la date actuelle
         id: get-date
-        run: |
-          echo "DATE=$(date -u '+%Y%m%d')" >> $GITHUB_ENV
+        run: echo "DATE=$(date -u '+%Y%m%d')" >> $GITHUB_ENV  # Stocke la date dans une variable d'environnement
 
-      # Étape pour mettre en cache le répertoire global de Buildozer
-      - name: Cache Buildozer global directory
+      - name: Cache Buildozer global directory  # Mettre en cache les dépendances
         uses: actions/cache@v3
         with:
-          path: .buildozer_global
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
+          path: .buildozer_global  # Chemin du cache
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }}  # Clé de cache basée sur le fichier buildozer.spec
 
-      # Étape pour construire avec Buildozer
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
+      - name: Build with Buildozer  # Construire l'application Android
+        uses: ArtemSBulgakov/buildozer-action@v1  # Utilise l'action Buildozer
         id: buildozer
         with:
-          command: buildozer android debug
+          command: buildozer android debug  # Commande de construction
 
-      # Étape pour uploader les artefacts
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - name: Upload artifacts  # Uploader les fichiers générés
+        uses: actions/upload-artifact@v3  # Utilise l'action d'upload
         with:
-          name: package
-          path: ${{ steps.buildozer.outputs.filename }}
+          name: package  # Nom des artefacts
+          path: ${{ steps.buildozer.outputs.filename }}  # Chemin vers le fichier à uploader
