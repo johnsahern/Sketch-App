@@ -11,6 +11,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false  # Désactiver l'authentification persistante
+
+      # Supprimer manuellement le .extraheader si nécessaire
+      - name: Remove extraheader
+        run: git config --unset-all http.https://github.com/.extraheader || true
 
       # Étape pour obtenir la date
       - name: Get Date
@@ -23,7 +29,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: .buildozer_global
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }} # Remplace par ton chemin
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
 
       # Étape pour construire avec Buildozer
       - name: Build with Buildozer
@@ -37,4 +43,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: package
-          path: ${{ steps.buildozer.outputs.filename }} # Assurez-vous que ceci est correct
+          path: ${{ steps.buildozer.outputs.filename }}
