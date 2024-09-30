@@ -1,7 +1,7 @@
 from kivy.app import App
 from kivy.uix.button import Button
 from kivy.uix.image import Image
-from kivy.uix.filechooser import FileChooserIconView
+from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.popup import Popup
 from kivy.uix.progressbar import ProgressBar
 from kivy.core.window import Window
@@ -81,7 +81,7 @@ class SketchApp(App):
         return self.layout
 
     def open_file_manager(self, instance):
-        content = FileChooserIconView()
+        content = FileChooserListView()
         content.bind(on_submit=self.load_image)
         self.popup = Popup(title="Select an Image", content=content, size_hint=(0.9, 0.9))
         self.popup.open()
