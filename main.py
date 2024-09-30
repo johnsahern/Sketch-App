@@ -8,8 +8,13 @@ from kivy.core.window import Window
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
-import subprocess
+from kivy.utils import platform
 import os
+import subprocess
+
+# Vérification si l'application tourne sur Android
+if platform == 'android':
+    from android.permissions import request_permissions, Permission
 
 class SketchApp(App):
     def __init__(self, **kwargs):
@@ -92,9 +97,6 @@ class SketchApp(App):
             self.image.source = self.selected_image_path
             self.image.reload()
             self.popup.dismiss()
-
-    import os
-    import subprocess
 
     def apply_transformation(self, *args):
         # Étape 1 : Appliquer la transformation de `step1.py`
