@@ -51,7 +51,7 @@ class SketchApp(App):
             background_color=(0.3, 0.7, 0.3, 1),
             color=(1, 1, 1, 1),
             font_size='18sp',
-            on_release=self.open_file_manager
+            on_release=self.check_android_permissions
         )
         self.layout.add_widget(self.btn_upload)
 
@@ -85,7 +85,14 @@ class SketchApp(App):
 
         return self.layout
 
-    def open_file_manager(self, instance):
+    def check_android_permissions(self, instance):
+        if platform == 'android':
+            # Demander les permissions si nécessaire
+            request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE], self.open_file_manager)
+        else:
+            self.open_file_manager(instance)
+
+    def open_file_manager(self, *args):
         content = FileChooserListView()
         content.bind(on_submit=self.load_image)
         self.popup = Popup(title="Select an Image", content=content, size_hint=(0.9, 0.9))
@@ -99,29 +106,24 @@ class SketchApp(App):
             self.popup.dismiss()
 
     def apply_transformation(self, *args):
-        # Étape 1 : Appliquer la transformation de `step1.py`
         output_step1 = os.path.join(os.path.dirname(self.selected_image_path), "output_step1.png")
         output_step2 = os.path.join(os.path.dirname(self.selected_image_path), "output_step2.png")
         output_step3 = os.path.join(os.path.dirname(self.selected_image_path), "output_step3.png")
 
         try:
-            # Exécuter les étapes de transformation
             subprocess.run(['python', 'step1.py', self.selected_image_path, output_step1], check=True)
             subprocess.run(['python', 'step2.py', output_step1, output_step2], check=True)
             subprocess.run(['python', 'step3.py', output_step2, output_step3], check=True)
 
-            # Afficher l'image finale dans l'application
             self.transformed_image_path = output_step3
             self.image.source = self.transformed_image_path
             self.image.reload()
 
-            # Supprimer les fichiers intermédiaires
             if os.path.exists(output_step1):
                 os.remove(output_step1)
             if os.path.exists(output_step2):
                 os.remove(output_step2)
 
-            # Mise à jour de la barre de progression
             self.progress_bar.value = 100
 
         except subprocess.CalledProcessError as e:
