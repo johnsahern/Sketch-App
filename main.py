@@ -12,6 +12,9 @@ from kivy.utils import platform
 import os
 import subprocess
 
+# Importer Plyer pour la gestion des fichiers
+from plyer import filechooser
+
 # Vérification si l'application tourne sur Android
 if platform == 'android':
     from android.permissions import request_permissions, Permission
@@ -93,17 +96,23 @@ class SketchApp(App):
             self.open_file_manager(instance)
 
     def open_file_manager(self, *args):
-        content = FileChooserListView()
-        content.bind(on_submit=self.load_image)
-        self.popup = Popup(title="Select an Image", content=content, size_hint=(0.9, 0.9))
-        self.popup.open()
+        if platform == 'android':
+            # Utiliser Plyer pour ouvrir le sélecteur de fichiers sur Android
+            filechooser.open_file(on_selection=self.load_image)
+        else:
+            # Utiliser FileChooserListView sur PC
+            content = FileChooserListView()
+            content.bind(on_submit=self.load_image)
+            self.popup = Popup(title="Select an Image", content=content, size_hint=(0.9, 0.9))
+            self.popup.open()
 
     def load_image(self, filechooser, selection, *args):
         if selection:
             self.selected_image_path = selection[0]
             self.image.source = self.selected_image_path
             self.image.reload()
-            self.popup.dismiss()
+            if hasattr(self, 'popup'):
+                self.popup.dismiss()
 
     def apply_transformation(self, *args):
         output_step1 = os.path.join(os.path.dirname(self.selected_image_path), "output_step1.png")
