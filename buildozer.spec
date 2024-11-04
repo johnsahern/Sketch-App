@@ -1,13 +1,13 @@
 [app]
 
-# (str) Title of your applications
-title = Sketch Image(Beta)
+# (str) Title of your application
+title = Sketch Image
 
 # (str) Package name
 package.name = myapp
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.test
+package.domain = org.sketch
 
 # (str) Source code where the main.py live
 source.dir = .
@@ -29,7 +29,7 @@ source.include_exts = py,png,jpg,kv,atlas
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 1.0.0
+version = 0.1
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
@@ -47,7 +47,7 @@ requirements = python3,kivy,opencv,pillow
 #presplash.filename = %(source.dir)s/data/presplash.png
 
 # (str) Icon of the application
-#icon.filename = drawing-book_5012416.png
+#icon.filename = %(source.dir)s/data/icon.png
 
 # (list) Supported orientations
 # Valid options are: landscape, portrait, portrait-reverse or landscape-reverse
@@ -90,7 +90,7 @@ fullscreen = 0
 #android.presplash_lottie = "path/to/lottie/file.json"
 
 # (str) Adaptive icon of the application (used if Android API level is 26+ at runtime)
-#icon.adaptive_foreground.filename = drawing-book_5012416.png
+#icon.adaptive_foreground.filename = %(source.dir)s/data/icon_fg.png
 #icon.adaptive_background.filename = %(source.dir)s/data/icon_bg.png
 
 # (list) Permissions
