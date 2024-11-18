@@ -1,99 +1,205 @@
 from kivy.app import App
 from kivy.uix.button import Button
 from kivy.uix.image import Image
-from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.popup import Popup
 from kivy.uix.progressbar import ProgressBar
+from kivy.uix.filechooser import FileChooserListView
 from kivy.core.window import Window
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
-from kivy.utils import platform
+from kivy.utils import get_color_from_hex
+from kivy.clock import Clock
+from kivy.animation import Animation
+from kivy.metrics import dp
+from kivy.properties import StringProperty
+from kivy.lang import Builder
 import os
 import subprocess
-
-# Importer Plyer pour la gestion des fichiers
 from plyer import filechooser
+from kivy.utils import platform
+from plyer import filechooser
+from kivy.utils import platform
 
-# Vérification si l'application tourne sur Android
-if platform == 'android':
-    from android.permissions import request_permissions, Permission
+Builder.load_string('''
+#:import get_color_from_hex kivy.utils.get_color_from_hex
+
+<ModernButton@Button>:
+    background_color: 0, 0, 0, 0
+    background_normal: ''
+    canvas.before:
+        Color:
+            rgba: get_color_from_hex('#2196F3') if self.state == 'normal' else get_color_from_hex('#1976D2')
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(10)]
+    font_name: 'Roboto'
+    bold: True
+    color: 1, 1, 1, 1
+
+<ModernProgressBar@ProgressBar>:
+    canvas:
+        Color:
+            rgba: get_color_from_hex('#E3F2FD')
+        RoundedRectangle:
+            pos: self.x, self.center_y - dp(4)
+            size: self.width, dp(8)
+            radius: [dp(4)]
+        Color:
+            rgba: get_color_from_hex('#2196F3')
+        RoundedRectangle:
+            pos: self.x, self.center_y - dp(4)
+            size: self.width * (self.value / 100.0), dp(8)
+            radius: [dp(4)]
+
+<CustomPopup@Popup>:
+    background: ''
+    background_color: 0, 0, 0, 0.8
+    separator_height: 0
+    title_size: dp(18)
+    title_color: 1, 1, 1, 1
+    
+<ModernTextInput@TextInput>:
+    background_color: 0.95, 0.95, 0.95, 1
+    foreground_color: 0.1, 0.1, 0.1, 1
+    cursor_color: get_color_from_hex('#2196F3')
+    padding: [dp(10), dp(10), dp(10), dp(10)]
+    font_size: dp(16)
+    multiline: False
+''')
 
 class SketchApp(App):
+    selected_image_path = StringProperty(None)
+    transformed_image_path = StringProperty(None)
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.selected_image_path = None
-        self.transformed_image_path = None
+        self.title = 'Image Sketch Studio'  # Set the window title
+        self.theme_cls = {
+            'primary': '#2196F3',
+            'primary_dark': '#1976D2',
+            'background': '#121212',
+            'surface': '#1E1E1E',
+            'error': '#CF6679'
+        }
 
     def build(self):
-        # Couleur de fond sombre par défaut
-        Window.clearcolor = (0.15, 0.15, 0.15, 1)
-
-        # Layout principal
+        Window.clearcolor = get_color_from_hex('#121212')
+        
         self.layout = FloatLayout()
-
-        # Titre de l'application
-        title = Label(
-            text="🖼️ Image Sketch 🖌️",
-            size_hint=(1, 0.1),
-            pos_hint={"y": 0.9},
-            color=(1, 1, 1, 1),
-            font_size='24sp'
+        
+        self.container = BoxLayout(
+            orientation='vertical',
+            spacing=dp(20),
+            padding=[dp(20)],
+            size_hint=(0.9, 0.9),
+            pos_hint={'center_x': 0.5, 'center_y': 0.5}
         )
-        self.layout.add_widget(title)
-
-        # Image affichée
-        self.image = Image(size_hint=(1, 0.55), pos_hint={"y": 0.35})
-        self.layout.add_widget(self.image)
-
-        # Bouton d'upload
+        
+        # Changed from self.title to header_label
+        self.header_label = Label(
+            text="Image Sketch Studio",
+            font_size=dp(28),
+            color=(1, 1, 1, 0.87),
+            size_hint_y=None,
+            height=dp(50),
+            bold=True
+        )
+        self.container.add_widget(self.header_label)
+        
+        self.image_container = BoxLayout(
+            size_hint_y=0.6,
+            padding=[dp(10)],
+        )
+        self.image = Image(
+            source='',
+            allow_stretch=True,
+            keep_ratio=True
+        )
+        self.image_container.add_widget(self.image)
+        self.container.add_widget(self.image_container)
+        
+        self.progress_bar = ProgressBar(
+            max=100,
+            size_hint_y=None,
+            height=dp(20),
+            value=0
+        )
+        self.container.add_widget(self.progress_bar)
+        
+        buttons_layout = BoxLayout(
+            orientation='vertical',
+            spacing=dp(10),
+            size_hint_y=None,
+            height=dp(180)
+        )
+        
+        # Upload button
         self.btn_upload = Button(
-            text="📁 Upload Image",
-            size_hint=(0.3, 0.1),
-            pos_hint={"x": 0.35, "y": 0.205},
-            background_color=(0.3, 0.7, 0.3, 1),
+            text="Select Image",
+            size_hint_y=None,
+            height=dp(50),
+            background_color=get_color_from_hex('#2196F3'),
             color=(1, 1, 1, 1),
-            font_size='18sp',
             on_release=self.check_android_permissions
         )
-        self.layout.add_widget(self.btn_upload)
-
-        # Bouton pour appliquer la transformation
-        self.btn_apply = Button(
-            text="🖌️ Apply Transformation",
-            size_hint=(0.3, 0.1),
-            pos_hint={"x": 0.35, "y": 0.1049},
-            background_color=(0.3, 0.7, 0.3, 1),
+        buttons_layout.add_widget(self.btn_upload)
+        
+        # Transform button
+        self.btn_transform = Button(
+            text="Transform Image",
+            size_hint_y=None,
+            height=dp(50),
+            background_color=get_color_from_hex('#2196F3'),
             color=(1, 1, 1, 1),
-            font_size='18sp',
             on_release=self.apply_transformation
         )
-        self.layout.add_widget(self.btn_apply)
-
-        # Bouton pour sauvegarder l'image transformée
+        buttons_layout.add_widget(self.btn_transform)
+        
+        # Save button
         self.btn_save = Button(
-            text="💾 Save Image",
-            size_hint=(0.3, 0.1),
-            pos_hint={"x": 0.35, "y": 0.001},
-            background_color=(0.3, 0.7, 0.3, 1),
+            text="Save Result",
+            size_hint_y=None,
+            height=dp(50),
+            background_color=get_color_from_hex('#2196F3'),
             color=(1, 1, 1, 1),
-            font_size='18sp',
             on_release=self.save_image
         )
-        self.layout.add_widget(self.btn_save)
-
-        # ProgressBar
-        self.progress_bar = ProgressBar(max=100, size_hint=(1, None), height=20, pos_hint={"y": 0.3})
-        self.layout.add_widget(self.progress_bar)
-
+        buttons_layout.add_widget(self.btn_save)
+        
+        self.container.add_widget(buttons_layout)
+        self.layout.add_widget(self.container)
+        
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+            from android.storage import primary_external_storage_path
+            self.storage_path = primary_external_storage_path()
+            
+            request_permissions([
+                Permission.READ_EXTERNAL_STORAGE,
+                Permission.WRITE_EXTERNAL_STORAGE
+            ])
+        
         return self.layout
 
     def check_android_permissions(self, instance):
         if platform == 'android':
-            # Demander les permissions si nécessaire
-            request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE], self.open_file_manager)
+            from android.storage import primary_external_storage_path
+            from android import mActivity
+            from android.permissions import request_permissions, Permission, check_permission
+
+            def on_permissions_callback(permissions, grant_results):
+                if all(grant_results):
+                    Clock.schedule_once(lambda dt: self.open_file_manager())
+
+            request_permissions([
+                Permission.READ_EXTERNAL_STORAGE,
+                Permission.WRITE_EXTERNAL_STORAGE
+            ], on_permissions_callback)
         else:
-            self.open_file_manager(instance)
+            self.open_file_manager()
 
     def open_file_manager(self, *args):
         if platform == 'android':
@@ -112,56 +218,133 @@ class SketchApp(App):
             self.image.source = self.selected_image_path
             self.image.reload()
             if hasattr(self, 'popup'):
-                self.popup.dismiss()
+                self.popup.dismiss()        
+
 
     def apply_transformation(self, *args):
-        output_step1 = os.path.join(os.path.dirname(self.selected_image_path), "output_step1.png")
-        output_step2 = os.path.join(os.path.dirname(self.selected_image_path), "output_step2.png")
-        output_step3 = os.path.join(os.path.dirname(self.selected_image_path), "output_step3.png")
+        if not self.selected_image_path:
+            self.show_error_popup("Please select an image first")
+            return
 
+        self.progress_bar.value = 0
+        
         try:
+            app_dir = self.get_application_directory()
+            output_step1 = os.path.join(app_dir, "output_step1.png")
+            output_step2 = os.path.join(app_dir, "output_step2.png")
+            output_step3 = os.path.join(app_dir, "output_step3.png")
+
+            def update_progress(value):
+                Animation(value=value, duration=0.3).start(self.progress_bar)
+
+            Clock.schedule_once(lambda dt: update_progress(33), 0.1)
             subprocess.run(['python', 'step1.py', self.selected_image_path, output_step1], check=True)
+            
+            Clock.schedule_once(lambda dt: update_progress(66), 0.2)
             subprocess.run(['python', 'step2.py', output_step1, output_step2], check=True)
+            
+            Clock.schedule_once(lambda dt: update_progress(100), 0.3)
             subprocess.run(['python', 'step3.py', output_step2, output_step3], check=True)
 
             self.transformed_image_path = output_step3
             self.image.source = self.transformed_image_path
             self.image.reload()
 
-            if os.path.exists(output_step1):
-                os.remove(output_step1)
-            if os.path.exists(output_step2):
-                os.remove(output_step2)
+            for file in [output_step1, output_step2]:
+                if os.path.exists(file):
+                    os.remove(file)
 
-            self.progress_bar.value = 100
-
-        except subprocess.CalledProcessError as e:
-            print(f"Erreur lors de l'exécution de la transformation: {e}")
+        except Exception as e:
+            self.show_error_popup(f"Transformation error: {str(e)}")
+            self.progress_bar.value = 0
 
     def save_image(self, *args):
-        content = FloatLayout()
-        self.file_name_input = TextInput(hint_text='Enter file name', size_hint=(0.5, 0.2), pos_hint={"y": 0.5, "x": 0.25})
-        content.add_widget(self.file_name_input)
+        if not self.transformed_image_path:
+            self.show_error_popup("No transformed image to save")
+            return
 
-        btn_save = Button(text='Save file', size_hint=(0.5, 0.2), pos_hint={"y": 0.3, "x": 0.25})
-        btn_save.bind(on_release=self.save_file)
+        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(20))
+        
+        self.file_name_input = TextInput(
+            hint_text='Enter file name',
+            size_hint_y=None,
+            height=dp(50),
+            multiline=False
+        )
+        content.add_widget(self.file_name_input)
+        
+        btn_save = Button(
+            text='Save',
+            size_hint_y=None,
+            height=dp(50),
+            background_color=get_color_from_hex('#2196F3'),
+            color=(1, 1, 1, 1),
+            on_release=self.save_file
+        )
         content.add_widget(btn_save)
 
-        self.popup = Popup(title="Save Transformed Image", content=content, size_hint=(0.5, 0.3))
+        self.popup = Popup(
+            title="Save Image",
+            content=content,
+            size_hint=(0.8, None),
+            height=dp(200)
+        )
         self.popup.open()
 
     def save_file(self, instance):
         file_name = self.file_name_input.text.strip()
-        if file_name:
-            save_path = os.path.join(os.path.dirname(self.selected_image_path), f"{file_name}.png")
-            try:
-                os.rename(self.transformed_image_path, save_path)
-                print(f"Image saved as {save_path}")
+        if not file_name:
+            self.show_error_popup("Please enter a file name")
+            return
+
+        try:
+            # Déterminer le répertoire de sauvegarde
+            save_dir = self.get_application_directory()
+            save_path = os.path.join(save_dir, f"{file_name}.png")
+
+            # renommer le fichier transformé
+            if hasattr(self, 'transformed_image_path') and os.path.exists(self.transformed_image_path):
+                os.rename(self.transformed_image_path, save_path)  # Renomme le fichier
+                self.show_success_popup(f"Image saved to {file_name}.png")
                 self.popup.dismiss()
-            except Exception as e:
-                print(f"Erreur lors de la sauvegarde de l'image: {e}")
+            else:
+                self.show_error_popup("No transformed image found to rename.")
+        except Exception as e:
+            self.show_error_popup(f"Error renaming file: {str(e)}")
+
+    def get_application_directory(self):
+        if platform == 'android':
+            from android.storage import primary_external_storage_path
+            app_dir = os.path.join(primary_external_storage_path(), 'ImageSketch')
         else:
-            print("Aucun nom de fichier entré.")
+            app_dir = os.path.join(os.path.dirname(__file__), 'output')
+            
+        os.makedirs(app_dir, exist_ok=True)
+        return app_dir
+
+    def show_error_popup(self, message):
+        content = BoxLayout(orientation='vertical', padding=dp(10))
+        content.add_widget(Label(text=message, color=(1, 0.8, 0.8, 1)))
+        
+        popup = Popup(
+            title='Error',
+            content=content,
+            size_hint=(0.8, None),
+            height=dp(150)
+        )
+        popup.open()
+
+    def show_success_popup(self, message):
+        content = BoxLayout(orientation='vertical', padding=dp(10))
+        content.add_widget(Label(text=message, color=(0.8, 1, 0.8, 1)))
+        
+        popup = Popup(
+            title='Success',
+            content=content,
+            size_hint=(0.8, None),
+            height=dp(150)
+        )
+        popup.open()
 
 if __name__ == "__main__":
     SketchApp().run()
