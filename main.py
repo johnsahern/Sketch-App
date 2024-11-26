@@ -21,6 +21,7 @@ from plyer import filechooser
 from kivy.utils import platform
 from plyer import filechooser
 from kivy.utils import platform
+from jnius import autoclass
 
 Builder.load_string('''
 #:import get_color_from_hex kivy.utils.get_color_from_hex
@@ -203,10 +204,14 @@ class SketchApp(App):
 
     def open_file_manager(self, *args):
         if platform == 'android':
-            # Utiliser Plyer pour ouvrir le sélecteur de fichiers sur Android
-            filechooser.open_file(on_selection=self.load_image)
+            # Use jnius to trigger Android's file chooser
+            filechooser = autoclass('android.content.Intent')
+            intent = filechooser(filechooser.ACTION_GET_CONTENT)
+            intent.setType("image/*")
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            PythonActivity.mActivity.startActivityForResult(intent, 1)
         else:
-            # Utiliser FileChooserListView sur PC
+            # For non-Android platforms, open standard file chooser
             content = FileChooserListView()
             content.bind(on_submit=self.load_image)
             self.popup = Popup(title="Select an Image", content=content, size_hint=(0.9, 0.9))
